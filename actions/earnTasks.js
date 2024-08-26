@@ -1,79 +1,53 @@
-// earnTasks.js
-const fetch = require('node-fetch'); // Ensure node-fetch is installed
+// actions/miniGame.js
+(async () => {
+    const fetch = (await import('node-fetch')).default;
 
-async function handleEarnTasks(bearerToken) {
-  if (!bearerToken) {
-    console.error('Bearer token is missing.');
-    return;
-  }
+    // Function to handle minigame logic
+    async function runMiniGame(bearerToken) {
+        const syncUrl = 'https://api.hamsterkombatgame.io/clicker/start-keys-minigame';
+        const claimUrl = 'https://api.hamsterkombatgame.io/clicker/claim-daily-keys-minigame';
 
-  try {
-    const apiUrl = 'https://api.hamsterkombatgame.io/clicker/';
-    
-    // Fetch the list of all tasks
-    const taskResponse = await fetch(apiUrl + 'list-tasks', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
-    const taskData = await taskResponse.json();
+        const syncOptions = {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${bearerToken}`,
+                'Content-Type': 'application/json'
+            }
+        };
 
-    if (!taskData.tasks) {
-      console.error('No tasks found in response.');
-      return;
+        const fetchAndClaimKeys = async () => {
+            try {
+                const response = await fetch(syncUrl, syncOptions);
+                const data = await response.json();
+                console.log('API Response:', data);
+
+                const userId = data.clickerUser ? data.clickerUser.id : 'No clickerUser found';
+                console.log('Clicker User ID:', userId);
+
+                const plainCipherValue = `0789877014|${userId}`;
+                const encodedCipherValue = Buffer.from(plainCipherValue).toString('base64'); // Base64 encode the cipher value
+
+                const claimOptions = {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${bearerToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ cipher: encodedCipherValue })
+                };
+
+                const claimResponse = await fetch(claimUrl, claimOptions);
+                const claimData = await claimResponse.json();
+                console.log('Claim Response:', claimData);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        };
+
+        // Call fetchAndClaimKeys every 24 hours (86400000 milliseconds)
+        setInterval(fetchAndClaimKeys, 86400000); // Adjust interval as needed
     }
 
-    // Filter tasks that are not completed
-    const incompleteTasks = taskData.tasks.filter(task => !task.isCompleted && task.id !== 'invite_friends');
-    const taskIds = incompleteTasks.map(task => task.id);
-
-    if (taskIds.length === 0) {
-      console.log('No incomplete tasks found.');
-      return;
-    }
-
-    // Function to check task completion with retries
-    const checkTaskCompletion = async (taskId, retryCount = 0) => {
-      if (retryCount >= 10) {
-        console.log(`Task ID ${taskId} has not been completed after 10 retries.`);
-        return;
-      }
-
-      try {
-        const checkResponse = await fetch(apiUrl + 'check-task', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ taskId })
-        });
-        const checkData = await checkResponse.json();
-
-        console.log(`Check Task Response for ID ${taskId}:`, checkData);
-
-        if (checkData.task?.isCompleted) {
-          console.log(`Task ID ${taskId} is completed.`);
-        } else {
-          const retryDelay = checkData.task?.rewardDelaySeconds ? Math.max(1000, checkData.task.rewardDelaySeconds) : 1000;
-          console.log(`Task ID ${taskId} is not completed. Retrying in ${retryDelay} ms...`);
-          setTimeout(() => checkTaskCompletion(taskId, retryCount + 1), retryDelay);
-        }
-      } catch (error) {
-        console.error(`Error checking task with ID ${taskId}:`, error);
-      }
-    };
-
-    // Process each task with a delay between requests
-    const processTasksWithDelay = (tasks, index = 0) => {
-      if (index >= tasks.length) return;
-
-      checkTaskCompletion(tasks[index]);
-
-      setTimeout(() => processTasksWithDelay(tasks, index + 1), 1000); // 1-second delay
-    };
-
-    processTasksWithDelay(taskIds);
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-  }
-}
-
-module.exports = handleEarnTasks;
+    // Export the function
+    module.exports = runMiniGame;
+})();
