@@ -1,7 +1,7 @@
-const runCipher = async () => {
-    const fetch = (await import('node-fetch')).default;
-    const token = global.token;
+const fetch = (await import('node-fetch')).default;
+const token = global.token;
 
+export const runCipher = async () => {
     const configUrl = 'https://api.hamsterkombatgame.io/clicker/config';
     const claimUrl = 'https://api.hamsterkombatgame.io/clicker/claim-daily-cipher';
 
@@ -36,5 +36,3 @@ const runCipher = async () => {
 
     setInterval(fetchAndProcessCipher, 86400000); // Adjust interval as needed
 };
-
-module.exports = { runCipher };

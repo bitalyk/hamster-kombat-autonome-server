@@ -1,6 +1,10 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 const port = 3000;
 
@@ -43,13 +47,13 @@ const loadTokenAndStartFunctions = async () => {
         global.token = token; // Make token available globally
 
         // Import and start functionalities
-        const cipherFunction = await import('./actions/cipher.js');
-        const earnTasksFunction = await import('./actions/earnTasks.js');
-        const miniGameFunction = await import('./actions/miniGame.js');
+        const { runCipher } = await import('./actions/cipher.js');
+        const { runEarnTasks } = await import('./actions/earnTasks.js');
+        const { runMiniGame } = await import('./actions/miniGame.js');
 
-        cipherFunction.runCipher();
-        earnTasksFunction.runEarnTasks();
-        miniGameFunction.runMiniGame();
+        runCipher();
+        runEarnTasks();
+        runMiniGame();
     } catch (error) {
         console.error('Error loading token or starting functionalities:', error);
         process.exit(1);

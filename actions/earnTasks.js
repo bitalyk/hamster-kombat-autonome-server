@@ -1,8 +1,8 @@
-const runEarnTasks = async () => {
-    const fetch = (await import('node-fetch')).default;
-    const token = global.token;
-    const apiUrl = 'https://api.hamsterkombatgame.io/clicker/';
+const fetch = (await import('node-fetch')).default;
+const token = global.token;
+const apiUrl = 'https://api.hamsterkombatgame.io/clicker/';
 
+export const runEarnTasks = async () => {
     const checkTaskCompletion = async (taskId, retryCount = 0) => {
         if (retryCount >= 10) {
             console.log(`Task ID ${taskId} has not been completed after 10 retries.`);
@@ -67,5 +67,3 @@ const runEarnTasks = async () => {
 
     setInterval(fetchAndProcessTasks, 3600000); // Adjust interval as needed
 };
-
-module.exports = { runEarnTasks };

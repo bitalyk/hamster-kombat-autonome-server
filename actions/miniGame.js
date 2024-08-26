@@ -1,7 +1,7 @@
-const runMiniGame = async () => {
-    const fetch = (await import('node-fetch')).default;
-    const token = global.token;
+const fetch = (await import('node-fetch')).default;
+const token = global.token;
 
+export const runMiniGame = async () => {
     const syncUrl = 'https://api.hamsterkombatgame.io/clicker/start-keys-minigame';
     const claimUrl = 'https://api.hamsterkombatgame.io/clicker/claim-daily-keys-minigame';
 
@@ -44,5 +44,3 @@ const runMiniGame = async () => {
 
     setInterval(fetchAndClaimKeys, 86400000); // Adjust interval as needed
 };
-
-module.exports = { runMiniGame };
