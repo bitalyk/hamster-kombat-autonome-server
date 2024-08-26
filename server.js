@@ -1,65 +1,60 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
-const bodyParser = require('body-parser');
-
-// Load the JavaScript files from the 'actions' folder
-const handleChiper = require('./actions/chiper');
-const handleEarnTasks = require('./actions/earnTasks');
-const runMiniGame = require('./actions/miniGame');
-
+const fs = require('fs');
 const app = express();
-const port = process.env.PORT || 3000;
+const port = 3000;
 
-// Path to the token file
-const tokenFilePath = path.join(__dirname, 'token.txt');
+// Middleware to serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Middleware to parse JSON bodies
-app.use(bodyParser.json());
-
-// Global variable to store the bearer token
-let bearerToken = null;
-
-// Function to read the token from a file
-function loadToken() {
-  if (fs.existsSync(tokenFilePath)) {
-    bearerToken = fs.readFileSync(tokenFilePath, 'utf8').trim();
-    if (!bearerToken) {
-      console.error('Token file is empty.');
-      process.exit(1); // Exit the process if no token is available
-    }
-  } else {
-    console.error('Token file not found.');
-    process.exit(1); // Exit the process if the token file is not found
-  }
-}
+// Serve the index page
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Serve the logs page
 app.get('/logs', (req, res) => {
-  res.send('<h1>Logs</h1><p>Here you can see the logs.</p>');
+    res.sendFile(path.join(__dirname, 'public', 'logs.html'));
 });
 
 // Serve the settings page
 app.get('/settings', (req, res) => {
-  res.send(`
-    <h1>Settings</h1>
-    <form action="/update-settings" method="get">
-      <label for="chiperInterval">Chiper Interval (ms):</label>
-      <input type="number" id="chiperInterval" name="chiperInterval" value="10000" /><br/><br/>
-      <label for="earnTasksInterval">Earn Tasks Interval (ms):</label>
-      <input type="number" id="earnTasksInterval" name="earnTasksInterval" value="15000" /><br/><br/>
-      <label for="miniGameInterval">Mini Game Interval (ms):</label>
-      <input type="number" id="miniGameInterval" name="miniGameInterval" value="20000" /><br/><br/>
-      <input type="submit" value="Update Settings" />
-    </form>
-  `);
+    res.sendFile(path.join(__dirname, 'public', 'settings.html'));
 });
 
-// Endpoint to update settings
-app.get('/update-settings', (req, res) => {
-  // Here you should update the intervals based on the query parameters
-  res.send('Settings updated successfully. <a href="/">Go back</a>');
+// Handle errors
+app.use((req, res, next) => {
+    res.status(404).send('Page Not Found');
 });
 
-// Serve the home page with links
-ap
+// Start server
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
+
+// Load token and handle server-side functionalities
+const loadTokenAndStartFunctions = async () => {
+    try {
+        const token = fs.readFileSync('token.txt', 'utf8').trim();
+        if (!token) {
+            console.error('No token found in token.txt');
+            process.exit(1);
+        }
+        global.token = token; // Make token available globally
+
+        // Import and start functionalities
+        const cipherFunction = await import('./actions/cipher.js');
+        const earnTasksFunction = await import('./actions/earnTasks.js');
+        const miniGameFunction = await import('./actions/miniGame.js');
+
+        cipherFunction.runCipher();
+        earnTasksFunction.runEarnTasks();
+        miniGameFunction.runMiniGame();
+    } catch (error) {
+        console.error('Error loading token or starting functionalities:', error);
+        process.exit(1);
+    }
+};
+
+// Start functionalities
+loadTokenAndStartFunctions();

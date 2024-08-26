@@ -1,22 +1,21 @@
-const fetch = require('node-fetch');
-
-// Function to handle earn tasks logic
-function handleEarnTasks(bearerToken) {
+const runEarnTasks = async () => {
+    const fetch = (await import('node-fetch')).default;
+    const token = global.token;
     const apiUrl = 'https://api.hamsterkombatgame.io/clicker/';
 
-    const checkTaskCompletion = (taskId, retryCount = 0) => {
+    const checkTaskCompletion = async (taskId, retryCount = 0) => {
         if (retryCount >= 10) {
             console.log(`Task ID ${taskId} has not been completed after 10 retries.`);
             return;
         }
 
-        fetch(apiUrl + 'check-task', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ taskId })
-        })
-        .then(response => response.json())
-        .then(taskData => {
+        try {
+            const response = await fetch(apiUrl + 'check-task', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId })
+            });
+            const taskData = await response.json();
             console.log(`Check Task Response for ID ${taskId}:`, taskData);
 
             if (taskData.task?.isCompleted) {
@@ -26,18 +25,19 @@ function handleEarnTasks(bearerToken) {
                 console.log(`Task ID ${taskId} is not completed. Retrying in ${retryDelay} ms...`);
                 setTimeout(() => checkTaskCompletion(taskId, retryCount + 1), retryDelay);
             }
-        })
-        .catch(error => console.error(`Error checking task with ID ${taskId}:`, error));
+        } catch (error) {
+            console.error(`Error checking task with ID ${taskId}:`, error);
+        }
     };
 
-    const getTasks = () => {
-        fetch(apiUrl + 'list-tasks', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        })
-        .then(response => response.json())
-        .then(data => {
+    const fetchAndProcessTasks = async () => {
+        try {
+            const response = await fetch(apiUrl + 'list-tasks', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
             if (!data.tasks) {
                 console.error('No tasks found in response.');
                 return;
@@ -60,13 +60,12 @@ function handleEarnTasks(bearerToken) {
             };
 
             processTasksWithDelay(taskIds);
-        })
-        .catch(error => console.error('Error fetching tasks:', error));
+        } catch (error) {
+            console.error('Error fetching tasks:', error);
+        }
     };
 
-    // Call getTasks every 15 minutes (900000 milliseconds)
-    setInterval(getTasks, 900000); // Adjust interval as needed
-}
+    setInterval(fetchAndProcessTasks, 3600000); // Adjust interval as needed
+};
 
-// Export the function
-module.exports = handleEarnTasks;
+module.exports = { runEarnTasks };
