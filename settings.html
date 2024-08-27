@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+</head>
+<body>
+    <h1>Settings</h1>
+    <form id="settingsForm">
+        <label for="interval">Interval (hours):</label>
+        <input type="number" id="interval" name="interval" min="1" required>
+        <button type="submit">Save</button>
+    </form>
+    <p><a href="/logs">View Logs</a></p>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/api/settings')
+                .then(response => response.json())
+                .then(settings => {
+                    document.getElementById('interval').value = settings.interval / 3600000; // Convert ms to hours
+                });
+        });
+
+        document.getElementById('settingsForm').addEventListener('submit', event => {
+            event.preventDefault();
+            const interval = document.getElementById('interval').value * 3600000; // Convert hours to ms
+
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ interval })
+            })
+            .then(response => response.text())
+            .then(message => alert(message))
+            .catch(error => console.error('Error updating settings:', error));
+        });
+    </script>
+</body>
+</html>
