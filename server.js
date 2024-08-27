@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
-const performPostRequests = require('./cipher'); // Import the function from cipher.js
+const performPostRequests = require('./cipher.js'); // Import the function from cipher.js
 const app = express();
 const port = 3000;
 
