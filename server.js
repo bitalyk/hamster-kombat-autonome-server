@@ -47,9 +47,9 @@ const loadTokenAndStartFunctions = async () => {
         global.token = token; // Make token available globally
 
         // Import and start functionalities
-        const { runCipher } = await import('./actions/cipher.js');
-        const { runEarnTasks } = await import('./actions/earnTasks.js');
-        const { runMiniGame } = await import('./actions/miniGame.js');
+        const { runCipher } = await import('./actions/cipher.msj');
+        const { runEarnTasks } = await import('./actions/earnTasks.msj');
+        const { runMiniGame } = await import('./actions/miniGame.msj');
 
         runCipher();
         runEarnTasks();
