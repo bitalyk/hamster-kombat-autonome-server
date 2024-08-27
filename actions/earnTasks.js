@@ -1,60 +1,57 @@
-// actions/miniGame.js
-const fetch = require('node-fetch');
+module.exports = (app, bearerToken) => {
+    app.post('/earn-tasks', (req, res) => {
+        const apiUrl = 'https://api.hamsterkombatgame.io/clicker/';
+        
+        fetch(apiUrl + 'list-tasks', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${bearerToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            const incompleteTasks = data.tasks.filter(task => !task.isCompleted && task.id !== 'invite_friends');
+            const taskIds = incompleteTasks.map(task => task.id);
 
-// Function to handle minigame logic
-function runMiniGame(bearerToken) {
-    const syncUrl = 'https://api.hamsterkombatgame.io/clicker/start-keys-minigame';
-    const claimUrl = 'https://api.hamsterkombatgame.io/clicker/claim-daily-keys-minigame';
+            if (taskIds.length === 0) {
+                console.log('No incomplete tasks found.');
+                return res.status(200).json({ message: 'No incomplete tasks found' });
+            }
 
-    // Define request options for the first POST request
-    const syncOptions = {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${bearerToken}`,
-            'Content-Type': 'application/json'
-        }
-    };
+            const checkTaskCompletion = (taskId, retryCount = 0) => {
+                if (retryCount >= 10) {
+                    console.log(`Task ID ${taskId} has not been completed after 10 retries.`);
+                    return;
+                }
 
-    // Function to fetch and claim keys
-    const fetchAndClaimKeys = () => {
-        fetch(syncUrl, syncOptions)
-            .then(response => response.json())
-            .then(data => {
-                console.log('API Response:', data);
-
-                // Extract the user ID from the response
-                const userId = data.clickerUser ? data.clickerUser.id : 'No clickerUser found';
-                console.log('Clicker User ID:', userId);
-
-                // Create and encode the cipher value
-                const plainCipherValue = `0789877014|${userId}`;
-                const encodedCipherValue = Buffer.from(plainCipherValue).toString('base64'); // Base64 encode the cipher value
-
-                // Define request options for the second POST request
-                const claimOptions = {
+                fetch(apiUrl + 'check-task', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${bearerToken}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ cipher: encodedCipherValue })
-                };
+                    body: JSON.stringify({ taskId })
+                })
+                .then(response => response.json())
+                .then(taskData => {
+                    if (taskData.task?.isCompleted) {
+                        console.log(`Task ID ${taskId} is completed.`);
+                    } else {
+                        const retryDelay = taskData.task?.rewardDelaySeconds ? Math.max(1000, taskData.task.rewardDelaySeconds) : 1000;
+                        setTimeout(() => checkTaskCompletion(taskId, retryCount + 1), retryDelay);
+                    }
+                })
+                .catch(error => console.error(`Error checking task with ID ${taskId}:`, error));
+            };
 
-                // Make the second API request
-                return fetch(claimUrl, claimOptions);
-            })
-            .then(response => response.json())
-            .then(claimData => {
-                console.log('Claim Response:', claimData);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-    };
-
-    // Call fetchAndClaimKeys every 24 hours (86400000 milliseconds)
-    setInterval(fetchAndClaimKeys, 86400000); // Adjust interval as needed
-}
-
-// Export the function
-module.exports = runMiniGame;
+            taskIds.forEach(taskId => checkTaskCompletion(taskId));
+            res.status(200).json({ message: 'Task checking initiated' });
+        })
+        .catch(error => {
+            console.error('Error fetching tasks:', error);
+            res.status(500).json({ error: 'Earn tasks operation failed' });
+        });
+    });
+};

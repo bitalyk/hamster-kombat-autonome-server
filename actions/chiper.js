@@ -1,53 +1,45 @@
-// chiper.js
-const fetch = require('node-fetch'); // Ensure node-fetch is installed
+module.exports = (app, bearerToken) => {
+  app.post('/cipher', (req, res) => {
+      const configUrl = 'https://api.hamsterkombatgame.io/clicker/config';
 
-async function handleChiper(bearerToken) {
-  if (!bearerToken) {
-    console.error('Bearer token is missing.');
-    return;
-  }
+      // First request to get and decode the cipher
+      fetch(configUrl, {
+          method: 'POST',
+          headers: {
+              'Authorization': `Bearer ${bearerToken}`,
+              'Content-Type': 'application/json'
+          }
+      })
+      .then(response => response.json())
+      .then(data => {
+          let cipherValue = data.dailyCipher.cipher;
+          cipherValue = cipherValue.slice(0, 3) + cipherValue.slice(4); // Remove 4th character
+          const decodedValue = Buffer.from(cipherValue, 'base64').toString('utf-8'); // Decode from Base64
 
-  try {
-    // First, get and decode the cipher value
-    const configUrl = 'https://api.hamsterkombatgame.io/clicker/config';
-    const options = {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${bearerToken}`,
-        'Content-Type': 'application/json'
-      }
-    };
+          // Log decoded cipher value
+          console.log('Decoded Cipher Value:', decodedValue);
 
-    const response = await fetch(configUrl, options);
-    const data = await response.json();
-    console.log('Initial API Response:', data);
+          // Send the decoded value in a new POST request
+          const claimUrl = 'https://api.hamsterkombatgame.io/clicker/claim-daily-cipher';
+          const claimBody = JSON.stringify({ cipher: decodedValue });
 
-    // Extract and modify the cipher value
-    let cipherValue = data.dailyCipher.cipher;
-    cipherValue = cipherValue.slice(0, 3) + cipherValue.slice(4); // Remove 4th character
-    const decodedValue = Buffer.from(cipherValue, 'base64').toString('utf8'); // Decode from Base64
-
-    console.log('Decoded Cipher Value:', decodedValue);
-
-    // Now, send the decoded value in a new POST request
-    const claimUrl = 'https://api.hamsterkombatgame.io/clicker/claim-daily-cipher';
-    const claimBody = JSON.stringify({ cipher: decodedValue });
-
-    const claimResponse = await fetch(claimUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${bearerToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: claimBody
-    });
-
-    const claimData = await claimResponse.json();
-    console.log('Claim Response:', claimData);
-
-  } catch (error) {
-    console.error('Error during request:', error);
-  }
-}
-
-module.exports = handleChiper;
+          return fetch(claimUrl, {
+              method: 'POST',
+              headers: {
+                  'Authorization': `Bearer ${bearerToken}`,
+                  'Content-Type': 'application/json'
+              },
+              body: claimBody
+          });
+      })
+      .then(claimResponse => claimResponse.json())
+      .then(claimData => {
+          console.log('Claim Response:', claimData);
+          res.status(200).json(claimData);
+      })
+      .catch(error => {
+          console.error('Error during cipher operation:', error);
+          res.status(500).json({ error: 'Cipher operation failed' });
+      });
+  });
+};
