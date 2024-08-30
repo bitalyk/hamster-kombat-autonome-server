@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        input {
+            margin-bottom: 10px;
+            padding: 5px;
+            width: 100px;
+        }
+        button {
+            padding: 5px 10px;
+        }
+        .password-section {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Service Scheduler Settings</h1>
+    <form id="settingsForm">
+        <div class="password-section">
+            <label for="password">Enter Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+
+        <h2>Task Interval (repeats every hour by default)</h2>
+        <label for="taskHours">Hours:</label>
+        <input type="number" id="taskHours" name="taskHours" min="0" value="1">
+        <br>
+        <label for="taskMinutes">Minutes:</label>
+        <input type="number" id="taskMinutes" name="taskMinutes" min="0" value="0">
+        <br>
+        <label for="taskSeconds">Seconds:</label>
+        <input type="number" id="taskSeconds" name="taskSeconds" min="0" value="0">
+        <br>
+        
+        <h2>Cipher Interval (Executes at 10:05 PM GMT+3)</h2>
+        <label for="cipherHours">Hours:</label>
+        <input type="number" id="cipherHours" name="cipherHours" min="0" value="24">
+        <br>
+        <label for="cipherMinutes">Minutes:</label>
+        <input type="number" id="cipherMinutes" name="cipherMinutes" min="0" value="0">
+        <br>
+        <label for="cipherSeconds">Seconds:</label>
+        <input type="number" id="cipherSeconds" name="cipherSeconds" min="0" value="0">
+        <br>
+
+        <h2>Minigame Candles Interval (Executes at 11:05 PM GMT+3)</h2>
+        <label for="minigameCandlesHours">Hours:</label>
+        <input type="number" id="minigameCandlesHours" name="minigameCandlesHours" min="0" value="24">
+        <br>
+        <label for="minigameCandlesMinutes">Minutes:</label>
+        <input type="number" id="minigameCandlesMinutes" name="minigameCandlesMinutes" min="0" value="0">
+        <br>
+        <label for="minigameCandlesSeconds">Seconds:</label>
+        <input type="number" id="minigameCandlesSeconds" name="minigameCandlesSeconds" min="0" value="0">
+        <br>
+
+        <h2>Minigame Tiles Interval (Executes at 2:05 PM GMT+3)</h2>
+        <label for="minigameTilesHours">Hours:</label>
+        <input type="number" id="minigameTilesHours" name="minigameTilesHours" min="0" value="24">
+        <br>
+        <label for="minigameTilesMinutes">Minutes:</label>
+        <input type="number" id="minigameTilesMinutes" name="minigameTilesMinutes" min="0" value="0">
+        <br>
+        <label for="minigameTilesSeconds">Seconds:</label>
+        <input type="number" id="minigameTilesSeconds" name="minigameTilesSeconds" min="0" value="0">
+        <br>
+        
+        <button type="button" id="applySettings">Apply Settings</button>
+    </form>
+
+    <script>
+        document.getElementById('applySettings').addEventListener('click', function() {
+            const password = document.getElementById('password').value;
+            const taskHours = document.getElementById('taskHours').value;
+            const taskMinutes = document.getElementById('taskMinutes').value;
+            const taskSeconds = document.getElementById('taskSeconds').value;
+            const taskInterval = (parseInt(taskHours) * 3600 + parseInt(taskMinutes) * 60 + parseInt(taskSeconds));
+
+            const cipherHours = document.getElementById('cipherHours').value;
+            const cipherMinutes = document.getElementById('cipherMinutes').value;
+            const cipherSeconds = document.getElementById('cipherSeconds').value;
+            const cipherInterval = (parseInt(cipherHours) * 3600 + parseInt(cipherMinutes) * 60 + parseInt(cipherSeconds));
+
+            const minigameCandlesHours = document.getElementById('minigameCandlesHours').value;
+            const minigameCandlesMinutes = document.getElementById('minigameCandlesMinutes').value;
+            const minigameCandlesSeconds = document.getElementById('minigameCandlesSeconds').value;
+            const minigameCandlesInterval = (parseInt(minigameCandlesHours) * 3600 + parseInt(minigameCandlesMinutes) * 60 + parseInt(minigameCandlesSeconds));
+
+            const minigameTilesHours = document.getElementById('minigameTilesHours').value;
+            const minigameTilesMinutes = document.getElementById('minigameTilesMinutes').value;
+            const minigameTilesSeconds = document.getElementById('minigameTilesSeconds').value;
+            const minigameTilesInterval = (parseInt(minigameTilesHours) * 3600 + parseInt(minigameTilesMinutes) * 60 + parseInt(minigameTilesSeconds));
+
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ password, taskInterval, cipherInterval, minigameCandlesInterval, minigameTilesInterval })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => console.error('Error updating settings:', error));
+        });
+    </script>
+</body>
+</html>

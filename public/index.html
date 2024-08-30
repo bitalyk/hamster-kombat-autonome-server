@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        a {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        button {
+            padding: 10px 15px;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to the Service Management Interface</h1>
+    <a href="/services-management.html">Go to Services Management</a>
+    <a href="/logs">View Logs</a>
+    <a href="/settings">Adjust Settings</a>
+    <a href="/schedules">View Schedules</a>
+    <a href="/shop">Shop Management</a>
+
+    <!-- New Turn Off Server Button -->
+    <button id="shutdownButton">Turn Off Server</button>
+
+    <script>
+        document.getElementById('shutdownButton').addEventListener('click', () => {
+            fetch('/api/shutdown', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message); // Alert the user that the server is shutting down
+                })
+                .catch(error => console.error('Error shutting down server:', error));
+        });
+    </script>
+</body>
+</html>

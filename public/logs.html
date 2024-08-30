@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Logs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .log-section {
+            margin-bottom: 20px;
+        }
+        .log-section h2 {
+            margin-bottom: 10px;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ccc;
+            overflow: auto;
+            max-height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Server Logs</h1>
+
+    <div class="log-section">
+        <h2>Console Logs</h2>
+        <pre id="consoleLogs">Loading console logs...</pre>
+    </div>
+
+    <div class="log-section">
+        <h2>General Logs</h2>
+        <pre id="generalLogs">Loading general logs...</pre>
+    </div>
+
+    <script>
+        function fetchLogs() {
+            fetch('/api/logs')  // API route to fetch logs
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('consoleLogs').textContent = data.consoleLogs || 'No console logs found.';
+                    document.getElementById('generalLogs').textContent = data.generalLogs || 'No general logs found.';
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    document.getElementById('consoleLogs').textContent = 'Error fetching console logs.';
+                    document.getElementById('generalLogs').textContent = 'Error fetching general logs.';
+                });
+        }
+
+        // Auto-refresh logs every second
+        setInterval(fetchLogs, 1000);
+
+        // Initial fetch to load logs when the page loads
+        fetchLogs();
+    </script>
+</body>
+</html>

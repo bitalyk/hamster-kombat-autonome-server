@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .control-section, .upgrade-section {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        button {
+            padding: 10px 15px;
+            margin-top: 10px;
+        }
+        .buy-button, .limit-button {
+            cursor: pointer;
+        }
+        .affordable {
+            background-color: lightgreen;
+        }
+        .expensive {
+            background-color: lightcoral;
+        }
+        .cooldown {
+            background-color: lightyellow;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shop Management</h1>
+    <div class="control-section">
+        <h2>Service Controls</h2>
+        <button id="startService">Start Shop Service</button>
+        <button id="stopService">Stop Shop Service</button>
+        <p id="serviceStatus">Status: Off</p>
+        <p>Balance: <span id="balance">0</span> coins</p>
+        <p>Current Purchase Limit: <span id="currentLimit">1</span></p>
+        <button id="refreshUpgrades">Refresh Upgrades</button>
+    </div>
+    
+    <div class="upgrade-section">
+        <h2>Available Upgrades</h2>
+        
+        <table id="upgradeTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Profit/Hour</th>
+                    <th>Price/Profit Ratio</th>
+                    <th>Cooldown</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Upgrade rows will be dynamically added here -->
+            </tbody>
+        </table>
+        
+    </div>
+
+    <script>
+        let cooldownIntervals = {};
+        const currentLimitElement = document.getElementById('currentLimit');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await updateServiceStatus();
+            await syncBalance();
+            await loadBalanceAndUpgrades(); // Load upgrades when the page loads
+        });
+
+        document.getElementById('startService').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/start-shop-service', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message); // Show feedback to the user
+                await updateServiceStatus(); // Update the status after starting the service
+                await syncBalance(); // Sync the balance after starting the service
+            } catch (error) {
+                console.error('Error starting shop service:', error);
+                alert('Failed to start the shop service. Please try again.');
+            }
+        });
+
+        document.getElementById('stopService').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/stop-shop-service', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message); // Show feedback to the user
+                await updateServiceStatus(); // Update the status after stopping the service
+            } catch (error) {
+                console.error('Error stopping shop service:', error);
+                alert('Failed to stop the shop service. Please try again.');
+            }
+        });
+
+        document.getElementById('refreshUpgrades').addEventListener('click', async () => {
+            clearIntervalCooldowns();
+            await loadBalanceAndUpgrades();
+        });
+
+        async function updateServiceStatus() {
+            const response = await fetch('/api/shop-service-status');
+            const data = await response.json();
+            document.getElementById('serviceStatus').innerText = `Status: ${data.status}`;
+        }
+
+        async function syncBalance() {
+            const response = await fetch('/api/sync-balance');
+            const data = await response.json();
+            document.getElementById('balance').innerText = data.balance;
+        }
+
+        async function loadBalanceAndUpgrades() {
+            try {
+                const syncResponse = await fetch('/api/sync-balance');
+                const syncData = await syncResponse.json();
+                const balance = Math.floor(syncData.balance);
+                document.getElementById('balance').innerText = balance;
+                
+                const upgradesResponse = await fetch('/api/fetch-upgrades');
+                const upgradesData = await upgradesResponse.json();
+                
+                const filteredUpgrades = upgradesData.upgrades.filter(upgrade => 
+                    !upgrade.isExpired && 
+                    upgrade.isAvailable &&
+                    (!upgrade.maxLevel || upgrade.level <= upgrade.maxLevel)
+                ).sort((a, b) => {
+                    const aPriceProfit = a.profitPerHourDelta ? a.price / a.profitPerHourDelta : Infinity;
+                    const bPriceProfit = b.profitPerHourDelta ? b.price / b.profitPerHourDelta : Infinity;
+                    return aPriceProfit - bPriceProfit;
+                });
+
+                const tableBody = document.getElementById('upgradeTable').querySelector('tbody');
+                tableBody.innerHTML = '';
+                filteredUpgrades.forEach((upgrade, index) => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine row color based on balance and cooldown
+                    if (upgrade.cooldownSeconds > 0) {
+                        row.classList.add('cooldown'); // Yellow for items with cooldown
+                    } else if (upgrade.price <= balance) {
+                        row.classList.add('affordable'); // Green for affordable items
+                    } else {
+                        row.classList.add('expensive'); // Red for expensive items
+                    }
+
+                    const priceProfit = upgrade.profitPerHourDelta ? (upgrade.price / upgrade.profitPerHourDelta).toFixed(2) : 'N/A';
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${upgrade.name}</td>
+                        <td>${upgrade.price}</td>
+                        <td>${upgrade.profitPerHourDelta || 'N/A'}</td>
+                        <td>${priceProfit}</td>
+                        <td class="cooldown-cell">${upgrade.cooldownSeconds > 0 ? upgrade.cooldownSeconds : 'no cooldown'}</td>
+                        <td>
+                            <button class="buy-button" data-id="${upgrade.id}">Buy</button>
+                            <button class="limit-button" data-limit="${priceProfit}">Set Limit</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+
+                    // Set up cooldown updating if cooldownSeconds is greater than 0
+                    if (upgrade.cooldownSeconds > 0) {
+                        updateCooldown(row.querySelector('.cooldown-cell'), upgrade.cooldownSeconds, upgrade.id);
+                    }
+                });
+
+                document.querySelectorAll('.buy-button').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const upgradeId = button.getAttribute('data-id');
+                        await buyUpgrade(upgradeId);
+                    });
+                });
+
+                document.querySelectorAll('.limit-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const newLimit = parseFloat(button.getAttribute('data-limit'));
+                        setPurchaseLimit(newLimit);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading upgrades:', error);
+            }
+        }
+
+        function updateCooldown(cell, cooldown, upgradeId) {
+            // Clear any existing interval for this upgrade
+            clearInterval(cooldownIntervals[upgradeId]);
+            cell.textContent = cooldown;
+
+            cooldownIntervals[upgradeId] = setInterval(() => {
+                cooldown--;
+                if (cooldown <= 0) {
+                    clearInterval(cooldownIntervals[upgradeId]);
+                    cell.textContent = 'ready to buy';
+                    cell.parentElement.classList.remove('cooldown');
+                    cell.parentElement.classList.add('affordable');
+                } else {
+                    cell.textContent = cooldown;
+                }
+            }, 1000);
+        }
+
+        function clearIntervalCooldowns() {
+            for (let key in cooldownIntervals) {
+                clearInterval(cooldownIntervals[key]);
+            }
+            cooldownIntervals = {};
+        }
+
+        async function buyUpgrade(upgradeId) {
+            try {
+                const response = await fetch(`/api/buy-upgrade`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ upgradeId })
+                });
+                const responseData = await response.json();
+                if (response.ok) {
+                    alert('Success: Upgrade purchased!');
+                    await syncBalance(); // Refresh balance after purchasing
+                    await loadBalanceAndUpgrades(); // Refresh upgrades after purchasing
+                } else {
+                    alert(`Error: ${responseData.error}`);
+                }
+            } catch (error) {
+                console.error('Error buying upgrade:', error);
+                alert('Error: Request failed. Please try again later.');
+            }
+        }
+
+        function setPurchaseLimit(newLimit) {
+            fetch('/api/set-purchase-limit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ limit: newLimit })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                currentLimitElement.textContent = newLimit;
+            })
+            .catch(error => {
+                console.error('Error setting purchase limit:', error);
+                alert('Failed to set the purchase limit. Please try again.');
+            });
+        }
+    </script>
+</body>
+</html>

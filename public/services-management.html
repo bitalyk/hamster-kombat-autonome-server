@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Services Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .service-section {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Services Management</h1>
+    <div class="service-section">
+        <h2>Task Service</h2>
+        <button id="executeTask">Execute Task Service</button>
+    </div>
+
+    <div class="service-section">
+        <h2>Cipher Service</h2>
+        <button id="executeCipher">Execute Cipher Service</button>
+    </div>
+
+    <div class="service-section">
+        <h2>Minigame Candles Service</h2>
+        <button id="executeMinigameCandles">Execute Minigame Candles Service</button>
+    </div>
+
+    <div class="service-section">
+        <h2>Minigame Tiles Service</h2>
+        <button id="executeMinigameTiles">Execute Minigame Tiles Service</button>
+    </div>
+
+    <script>
+        document.getElementById('executeTask').addEventListener('click', function() {
+            fetch('/api/check-tasks', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => console.error('Error executing task service:', error));
+        });
+
+        document.getElementById('executeCipher').addEventListener('click', function() {
+            fetch('/api/process-cipher', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => console.error('Error executing cipher service:', error));
+        });
+
+        document.getElementById('executeMinigameCandles').addEventListener('click', function() {
+            fetch('/api/process-minigame-candles', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => console.error('Error executing minigame candles service:', error));
+        });
+
+        document.getElementById('executeMinigameTiles').addEventListener('click', function() {
+            fetch('/api/process-minigame-tiles', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => console.error('Error executing minigame tiles service:', error));
+        });
+    </script>
+</body>
+</html>
