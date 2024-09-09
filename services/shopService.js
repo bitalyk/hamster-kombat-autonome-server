@@ -70,15 +70,17 @@ async function prioritizeUpgrades(upgrades, balance, earnPassivePerSec) {
         aboveLimitItems.sort((a, b) => 
             (a.price / a.profitPerHourDelta) - (b.price / b.profitPerHourDelta)
         );
-
+        
+        selectedUpgrade = null;
+        let lowestRatio = Infinity;
+        
         aboveLimitItems.forEach(item => {
-            const waitTimeForBalance = Math.max(0, Math.ceil((item.price - balance) / earnPassivePerSec));
-            const waitTimeForCooldown = item.cooldownSeconds ? item.cooldownSeconds : 0;
-            const effectiveWaitTime = Math.max(waitTimeForBalance, waitTimeForCooldown);
-
-            if (effectiveWaitTime < nextWaitTime) {
+            const priceToProfitRatio = item.price / item.profitPerHourDelta;
+        
+            // Select the upgrade with the lowest price-to-profit ratio
+            if (priceToProfitRatio < lowestRatio) {
                 selectedUpgrade = item;
-                nextWaitTime = effectiveWaitTime;
+                lowestRatio = priceToProfitRatio;
             }
         });
     }
