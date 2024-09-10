@@ -73,7 +73,7 @@ async function prioritizeUpgrades(upgrades, balance, earnPassivePerSec) {
         
         selectedUpgrade = null;
         let lowestRatio = Infinity;
-        let nextWaitTime = Infinity;
+        let nextWaitTime = 0;
         
         aboveLimitItems.forEach(item => {
             const priceToProfitRatio = item.price / item.profitPerHourDelta;
