@@ -90,7 +90,6 @@ async function prioritizeUpgrades(upgrades, balance, earnPassivePerSec) {
                 nextWaitTime = effectiveWaitTime; // Update the next wait time accordingly
             }
         });
-        
     }
 
     logConsoleMessage(`Selected upgrade: ${selectedUpgrade ? selectedUpgrade.name : 'None'} with wait time: ${nextWaitTime} seconds`);
