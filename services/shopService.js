@@ -73,16 +73,24 @@ async function prioritizeUpgrades(upgrades, balance, earnPassivePerSec) {
         
         selectedUpgrade = null;
         let lowestRatio = Infinity;
+        let nextWaitTime = Infinity;
         
         aboveLimitItems.forEach(item => {
             const priceToProfitRatio = item.price / item.profitPerHourDelta;
         
-            // Select the upgrade with the lowest price-to-profit ratio
+            // Calculate wait times for balance and cooldown
+            const waitTimeForBalance = Math.max(0, Math.ceil((item.price - balance) / earnPassivePerSec));
+            const waitTimeForCooldown = item.cooldownSeconds ? item.cooldownSeconds : 0;
+            const effectiveWaitTime = Math.max(waitTimeForBalance, waitTimeForCooldown);
+        
+            // Select the upgrade based on lowest price-to-profit ratio
             if (priceToProfitRatio < lowestRatio) {
                 selectedUpgrade = item;
                 lowestRatio = priceToProfitRatio;
+                nextWaitTime = effectiveWaitTime; // Update the next wait time accordingly
             }
         });
+        
     }
 
     logConsoleMessage(`Selected upgrade: ${selectedUpgrade ? selectedUpgrade.name : 'None'} with wait time: ${nextWaitTime} seconds`);
