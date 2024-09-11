@@ -34,7 +34,7 @@
 
     <div class="log-section">
         <h2>General Logs</h2>
-        <pre id="generalLogs">Loading general logs...</pre>
+        <pre id="generalLogs">Logs stopped!</pre>
     </div>
 
     <script>
@@ -43,7 +43,6 @@
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('consoleLogs').textContent = data.consoleLogs || 'No console logs found.';
-                    document.getElementById('generalLogs').textContent = data.generalLogs || 'No general logs found.';
                 })
                 .catch(error => {
                     console.error('Error fetching logs:', error);
