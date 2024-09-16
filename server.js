@@ -79,6 +79,30 @@ app.get('/secret-settings', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'secret-settings.html'));
 });
 
+app.post('/api/set-secret-keys', (req, res) => {
+    const { bearerToken } = req.body;
+  
+    // Define the path to the 'token' directory and 'token.txt' file
+    const tokenDir = path.join(__dirname, 'token');
+    const tokenFilePath = path.join(tokenDir, 'token.txt');
+  
+    // Ensure the 'token' directory exists
+    if (!fs.existsSync(tokenDir)) {
+      fs.mkdirSync(tokenDir, { recursive: true });
+    }
+  
+    // Write the 'bearerToken' to 'token.txt'
+    fs.writeFile(tokenFilePath, bearerToken, (err) => {
+      if (err) {
+        console.error('Error writing bearer token to file:', err);
+        res.status(500).json({ message: 'Failed to store the bearer token.' });
+      } else {
+        console.log('Bearer token stored successfully at', tokenFilePath);
+        res.json({ message: 'Bearer token set successfully!' });
+      }
+    });
+  });
+
 // Endpoint to set the purchase limit
 app.post('/api/set-purchase-limit', (req, res) => {
     const { limit } = req.body;
