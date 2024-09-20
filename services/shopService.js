@@ -1,16 +1,23 @@
+// Required Modules
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
+// Constants and Configuration
 const tokenPath = path.join(__dirname, '..', 'token', 'token.txt');
 const token = fs.readFileSync(tokenPath, 'utf8').trim();
-const urlSync = 'https://api.hamsterkombatgame.io/clicker/sync';
-const urlUpgrades = 'https://api.hamsterkombatgame.io/clicker/upgrades-for-buy';
-const urlBuyUpgrade = 'https://api.hamsterkombatgame.io/clicker/buy-upgrade';
+const urlSync = 'https://api.hamsterkombatgame.io/interlude/sync';
+const urlUpgrades = 'https://api.hamsterkombatgame.io/interlude/upgrades-for-buy';
+const urlBuyUpgrade = 'https://api.hamsterkombatgame.io/interlude/buy-upgrade';
+const ONE_MINUTE = 60000;
+const DEFAULT_WAIT_TIME = ONE_MINUTE;
+const CHECK_INTERVAL = 60*15; // Interval in seconds to re-check for new upgrades
+let PURCHASE_LIMIT = 1; // Default limit value; can be adjusted
 
+// Global Variables
 let isRunning = false;
-let purchaseLimit = 1; // Default limit value
 
+// Helper Functions
 function logConsoleMessage(message) {
     const now = new Date();
     const timestamp = `[${now.toTimeString().split(' ')[0]}, ${now.toLocaleDateString('en-GB').replace(/\//g, '-')}] ${message}`;
@@ -18,7 +25,11 @@ function logConsoleMessage(message) {
     fs.appendFileSync('logs/console_logs.txt', `${timestamp}\n`);
 }
 
-async function fetchApiData(url) {
+async function waitFor(seconds) {
+    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+}
+
+async function fetchData(url) {
     try {
         const response = await axios.post(url, {}, {
             headers: { 'Authorization': `Bearer ${token}` },
@@ -27,12 +38,39 @@ async function fetchApiData(url) {
         return response.data;
     } catch (error) {
         if (error.code === 'ECONNABORTED') {
-            logConsoleMessage('Request timed out. Retrying...');
+            logConsoleMessage(`Request to ${url} timed out. Retrying...`);
         } else {
-            logConsoleMessage(`Error fetching data: ${error.message}`);
-            stopShopService();
+            logConsoleMessage(`Error fetching data from ${url}: ${error.message}`);
         }
         return null;
+    }
+}
+
+async function fetchLatestData() {
+    const [syncData, upgradesData] = await Promise.all([
+        fetchData(urlSync),
+        fetchData(urlUpgrades)
+    ]);
+
+    if (!syncData || !upgradesData) {
+        logConsoleMessage('Failed to fetch the latest data.');
+        return null;
+    }
+
+    return { syncData, upgradesData };
+}
+
+async function canPurchaseUpgrade(upgrade, balance) {
+    if (upgrade.cooldownSeconds > 0) {
+        logConsoleMessage(`Upgrade ${upgrade.name} is on cooldown for ${upgrade.cooldownSeconds} seconds.`);
+        return false;
+    }
+
+    if (balance >= upgrade.price) {
+        return true;
+    } else {
+        logConsoleMessage(`Insufficient balance for ${upgrade.name}: Needed ${upgrade.price}, Current ${balance}`);
+        return false;
     }
 }
 
@@ -45,127 +83,37 @@ async function prioritizeUpgrades(upgrades, balance, earnPassivePerSec) {
 
     // Separate items below and above the purchase limit
     const belowLimitItems = profitableUpgrades.filter(upgrade => 
-        (upgrade.price / upgrade.profitPerHourDelta) <= purchaseLimit
+        (upgrade.price / upgrade.profitPerHourDelta) <= PURCHASE_LIMIT
     );
 
-    const aboveLimitItems = profitableUpgrades.filter(upgrade => 
-        (upgrade.price / upgrade.profitPerHourDelta) > purchaseLimit
-    );
-
-    // Check below-limit items based on time efficiency
-    belowLimitItems.forEach(item => {
-        const waitTimeForBalance = Math.max(0, Math.ceil((item.price - balance) / earnPassivePerSec));
-        const waitTimeForCooldown = item.cooldownSeconds ? item.cooldownSeconds : 0;
-        const effectiveWaitTime = Math.max(waitTimeForBalance, waitTimeForCooldown);
-
-        if (effectiveWaitTime < nextWaitTime) {
-            selectedUpgrade = item;
-            nextWaitTime = effectiveWaitTime;
-        }
-    });
-
-    // If no viable below-limit items, consider above-limit items
-    // This logic will only trigger if there are no below-limit items available at all
-    if (!selectedUpgrade && belowLimitItems.length === 0) {
-        aboveLimitItems.sort((a, b) => 
-            (a.price / a.profitPerHourDelta) - (b.price / b.profitPerHourDelta)
-        );
-        
-        aboveLimitItems.forEach(item => {
-            const priceToProfitRatio = item.price / item.profitPerHourDelta;
-        
-            // Calculate wait times for balance and cooldown
+    if (belowLimitItems.length > 0) {
+        // Prioritize based on time efficiency
+        for (const item of belowLimitItems) {
             const waitTimeForBalance = Math.max(0, Math.ceil((item.price - balance) / earnPassivePerSec));
-            const waitTimeForCooldown = item.cooldownSeconds ? item.cooldownSeconds : 0;
+            const waitTimeForCooldown = item.cooldownSeconds || 0;
             const effectiveWaitTime = Math.max(waitTimeForBalance, waitTimeForCooldown);
-        
-            // Select the upgrade based on lowest price-to-profit ratio
-            if (priceToProfitRatio < lowestRatio) {
+
+            if (effectiveWaitTime < nextWaitTime) {
                 selectedUpgrade = item;
-                lowestRatio = priceToProfitRatio;
-                nextWaitTime = effectiveWaitTime; // Update the next wait time accordingly
+                nextWaitTime = effectiveWaitTime;
             }
-        });
+        }
+    } else {
+        // Consider above-limit items
+        const sortedAboveLimitItems = profitableUpgrades
+            .filter(upgrade => (upgrade.price / upgrade.profitPerHourDelta) > PURCHASE_LIMIT)
+            .sort((a, b) => (a.price / a.profitPerHourDelta) - (b.price / b.profitPerHourDelta));
+
+        if (sortedAboveLimitItems.length > 0) {
+            selectedUpgrade = sortedAboveLimitItems[0];
+            const waitTimeForBalance = Math.max(0, Math.ceil((selectedUpgrade.price - balance) / earnPassivePerSec));
+            const waitTimeForCooldown = selectedUpgrade.cooldownSeconds || 0;
+            nextWaitTime = Math.max(waitTimeForBalance, waitTimeForCooldown);
+        }
     }
 
     logConsoleMessage(`Selected upgrade: ${selectedUpgrade ? selectedUpgrade.name : 'None'} with wait time: ${nextWaitTime} seconds`);
     return { selectedUpgrade, nextWaitTime };
-}
-
-async function startShopService() {
-    if (isRunning) {
-        logConsoleMessage('Shop service is already running.');
-        return;
-    }
-    isRunning = true;
-    logConsoleMessage('Shop service started.');
-
-    while (isRunning) {
-        const syncData = await fetchApiData(urlSync);
-        if (!syncData) continue;
-
-        const { clickerUser } = syncData;
-        const balance = Math.floor(clickerUser.balanceCoins);
-        const earnPassivePerSec = Math.round(clickerUser.earnPassivePerSec);
-
-        logConsoleMessage(`Balance synced: ${balance} coins. Earn Passive Per Sec: ${earnPassivePerSec} coins`);
-
-        const upgradesData = await fetchApiData(urlUpgrades);
-        if (!upgradesData) continue;
-
-        const upgrades = upgradesData.upgradesForBuy.filter(upgrade =>
-            !upgrade.isExpired &&
-            upgrade.isAvailable &&
-            (!upgrade.maxLevel || upgrade.level <= upgrade.maxLevel)
-        );
-
-        let { selectedUpgrade, nextWaitTime } = await prioritizeUpgrades(upgrades, balance, earnPassivePerSec);
-
-        while (selectedUpgrade) {
-            logConsoleMessage(`Preparing to buy ${selectedUpgrade.name} after waiting ${nextWaitTime} seconds`);
-            await new Promise(resolve => setTimeout(resolve, nextWaitTime * 1000));
-
-            // Re-check conditions and cooldowns
-            const latestBalanceData = await fetchApiData(urlSync);
-            const latestUpgradeData = await fetchApiData(urlUpgrades);
-            if (!latestBalanceData || !latestUpgradeData) continue;
-
-            const latestBalance = Math.floor(latestBalanceData.clickerUser.balanceCoins);
-            const currentUpgrade = latestUpgradeData.upgradesForBuy.find(upg => upg.id === selectedUpgrade.id);
-
-            if (currentUpgrade && currentUpgrade.cooldownSeconds > 0) {
-                logConsoleMessage(`Cannot buy ${selectedUpgrade.name}: still on cooldown for ${currentUpgrade.cooldownSeconds} seconds`);
-                
-                // If the selected upgrade was below limit and on cooldown, wait for it
-                if ((selectedUpgrade.price / selectedUpgrade.profitPerHourDelta) <= purchaseLimit) {
-                    logConsoleMessage(`Waiting for cooldown to expire for below-limit upgrade: ${selectedUpgrade.name}`);
-                    nextWaitTime = currentUpgrade.cooldownSeconds;
-                    continue; // Stay in loop waiting for cooldown to end
-                }
-
-                // If it was above limit, do not proceed
-                logConsoleMessage(`Above-limit item is on cooldown, will not proceed with reprioritization.`);
-                selectedUpgrade = null;
-                break;
-            }
-
-            if (latestBalance >= selectedUpgrade.price) {
-                logConsoleMessage(`Attempting to buy ${selectedUpgrade.name} for ${selectedUpgrade.price} coins`);
-                await buyUpgrade(selectedUpgrade.id);
-                break; // Exit while loop after successful purchase
-            } else {
-                logConsoleMessage(`Insufficient balance for ${selectedUpgrade.name}: Needed: ${selectedUpgrade.price}, Current: ${latestBalance}`);
-                break; // Exit while loop if conditions aren't met
-            }
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute before the next loop iteration
-    }
-}
-
-function stopShopService() {
-    isRunning = false;
-    logConsoleMessage('Shop service stopped.');
 }
 
 async function buyUpgrade(upgradeId) {
@@ -183,18 +131,155 @@ async function buyUpgrade(upgradeId) {
             throw new Error(response.data.error_message);
         }
 
-        const newBalance = Math.floor(response.data.clickerUser.balanceCoins);
+        const newBalance = Math.floor(response.data.interludeUser.balanceDiamonds);
         logConsoleMessage(`Upgrade purchased successfully. New balance: ${newBalance} coins`);
+        return true;
     } catch (error) {
         logConsoleMessage(`Error buying upgrade: ${error.response?.data?.error_message || error.message}`);
+        return false;
     }
 }
 
-function setPurchaseLimit(newLimit) {
-    purchaseLimit = newLimit;
-    logConsoleMessage(`Purchase limit set to ${purchaseLimit}`);
+async function startShopService() {
+    if (isRunning) {
+        logConsoleMessage('Shop service is already running.');
+        return;
+    }
+    isRunning = true;
+    logConsoleMessage('Shop service started.');
+
+    while (isRunning) {
+        const data = await fetchLatestData();
+        if (!data) {
+            await waitFor(DEFAULT_WAIT_TIME / 1000);
+            continue;
+        }
+
+        const { syncData, upgradesData } = data;
+        const { interludeUser } = syncData;
+        const balance = Math.floor(interludeUser.balanceDiamonds);
+        const earnPassivePerSec = Math.round(interludeUser.earnPassivePerSec);
+
+        logConsoleMessage(`Balance synced: ${balance} coins. Earn Passive Per Sec: ${earnPassivePerSec} coins`);
+
+        const availableUpgrades = upgradesData.upgradesForBuy.filter(upgrade =>
+            !upgrade.isExpired &&
+            upgrade.isAvailable &&
+            (!upgrade.maxLevel || upgrade.level <= upgrade.maxLevel)
+        );
+
+        let { selectedUpgrade, nextWaitTime } = await prioritizeUpgrades(availableUpgrades, balance, earnPassivePerSec);
+
+        if (!selectedUpgrade) {
+            logConsoleMessage('No suitable upgrades found. Waiting before retrying.');
+            await waitFor(DEFAULT_WAIT_TIME / 1000);
+            continue;
+        }
+
+        let retryCount = 0;
+        const maxRetries = 5;
+        let totalWaitTime = 0;
+
+        while (selectedUpgrade && retryCount < maxRetries && isRunning) {
+            const remainingWaitTime = nextWaitTime - totalWaitTime;
+            if (remainingWaitTime <= 0) {
+                break;
+            }
+
+            const waitTime = Math.min(remainingWaitTime, CHECK_INTERVAL);
+            logConsoleMessage(`Waiting for ${waitTime} seconds before re-evaluating upgrades...`);
+            await waitFor(waitTime);
+            totalWaitTime += waitTime;
+
+            // Re-fetch the latest data to check for new upgrades
+            const latestData = await fetchLatestData();
+            if (!latestData) {
+                retryCount++;
+                continue;
+            }
+
+            const { syncData: latestSyncData, upgradesData: latestUpgradesData } = latestData;
+            const latestBalance = Math.floor(latestSyncData.interludeUser.balanceDiamonds);
+            const latestEarnPassivePerSec = Math.round(latestSyncData.interludeUser.earnPassivePerSec);
+
+            const latestAvailableUpgrades = latestUpgradesData.upgradesForBuy.filter(upgrade =>
+                !upgrade.isExpired &&
+                upgrade.isAvailable &&
+                (!upgrade.maxLevel || upgrade.level <= upgrade.maxLevel)
+            );
+
+            // Re-prioritize upgrades
+            const { selectedUpgrade: newSelectedUpgrade, nextWaitTime: newNextWaitTime } =
+                await prioritizeUpgrades(latestAvailableUpgrades, latestBalance, latestEarnPassivePerSec);
+
+            // Check if a better upgrade has become available
+            if (newSelectedUpgrade && newSelectedUpgrade.id !== selectedUpgrade.id) {
+                logConsoleMessage(`Found a better upgrade: ${newSelectedUpgrade.name}. Switching targets.`);
+                selectedUpgrade = newSelectedUpgrade;
+                nextWaitTime = newNextWaitTime;
+                totalWaitTime = 0; // Reset total wait time
+                continue;
+            } else {
+                // Update remaining wait time based on latest data
+                selectedUpgrade = newSelectedUpgrade;
+                nextWaitTime = newNextWaitTime;
+            }
+
+            // Check if we can now purchase the selected upgrade
+            if (await canPurchaseUpgrade(selectedUpgrade, latestBalance)) {
+                logConsoleMessage(`Attempting to buy ${selectedUpgrade.name} for ${selectedUpgrade.price} coins`);
+                const purchaseSuccess = await buyUpgrade(selectedUpgrade.id);
+
+                if (purchaseSuccess) {
+                    // Verify purchase by fetching updated balance
+                    const postPurchaseData = await fetchData(urlSync);
+                    if (postPurchaseData) {
+                        const newBalance = Math.floor(postPurchaseData.interludeUser.balanceDiamonds);
+                        if (newBalance < latestBalance) {
+                            logConsoleMessage(`Purchase of ${selectedUpgrade.name} confirmed. New balance: ${newBalance} coins.`);
+                        } else {
+                            logConsoleMessage(`Purchase of ${selectedUpgrade.name} failed or not reflected yet.`);
+                        }
+                    }
+                    break; // Exit inner loop after purchase
+                } else {
+                    retryCount++;
+                    continue; // Retry if purchase failed
+                }
+            } else {
+                logConsoleMessage(`Cannot purchase ${selectedUpgrade.name} at this time.`);
+                // Decide whether to continue waiting or re-evaluate
+                if (totalWaitTime >= nextWaitTime) {
+                    break; // Exit if we've waited enough
+                }
+            }
+        }
+
+        if (retryCount >= maxRetries) {
+            logConsoleMessage(`Max retries reached for purchasing ${selectedUpgrade ? selectedUpgrade.name : 'upgrade'}. Moving on.`);
+        }
+
+        // Wait before next iteration
+        await waitFor(DEFAULT_WAIT_TIME / 1000);
+    }
 }
 
+function stopShopService() {
+    isRunning = false;
+    logConsoleMessage('Shop service stopped.');
+}
+
+function setPurchaseLimit(newLimit) {
+    PURCHASE_LIMIT = newLimit;
+    logConsoleMessage(`Purchase limit set to ${PURCHASE_LIMIT}`);
+}
+
+process.on('SIGINT', () => {
+    stopShopService();
+    logConsoleMessage('Shutting down gracefully...');
+});
+
+// Exported Functions
 module.exports = {
     startShopService,
     stopShopService,

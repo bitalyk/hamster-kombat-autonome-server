@@ -6,7 +6,7 @@ const path = require('path');
 const tokenPath = path.join(__dirname, '..', 'token', 'token.txt');
 const token = fs.readFileSync(tokenPath, 'utf8').trim(); // Read and trim to remove any extra spaces/newlines
 
-const apiUrl = 'https://api.hamsterkombatgame.io/clicker/';
+const apiUrl = 'https://api.hamsterkombatgame.io/interlude/';
 
 // Centralized logging function (should be consistent with the one in server.js)
 function logConsoleMessage(message) {

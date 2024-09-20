@@ -15,9 +15,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Define API endpoints for the shop service
-const urlSync = 'https://api.hamsterkombatgame.io/clicker/sync';
-const urlUpgrades = 'https://api.hamsterkombatgame.io/clicker/upgrades-for-buy';
-const urlBuyUpgrade = 'https://api.hamsterkombatgame.io/clicker/buy-upgrade';
+const urlSync = 'https://api.hamsterkombatgame.io/interlude/sync';
+const urlUpgrades = 'https://api.hamsterkombatgame.io/interlude/upgrades-for-buy';
+const urlBuyUpgrade = 'https://api.hamsterkombatgame.io/interlude/buy-upgrade';
 
 // Middleware
 app.use(express.json());
@@ -136,7 +136,7 @@ app.post('/api/settings', (req, res) => {
     const storedPassword = fs.readFileSync(passwordPath, 'utf8').trim();
 
     if (password !== storedPassword) {
-        logConsoleMessage('Failed password attempt for settings update.');
+        logConsoleMessage('Failed password attempt for settings update.'); 
         return res.status(403).json({ message: 'Incorrect password. Settings not updated.' });
     }
 
@@ -172,7 +172,7 @@ app.get('/api/sync-balance', async (req, res) => {
             },
             timeout: 5000
         });
-        const balance = Math.floor(response.data.clickerUser.balanceCoins);
+        const balance = Math.floor(response.data.interludeUser.balanceDiamonds);
         res.json({ balance });
     } catch (error) {
         logConsoleMessage(`Error syncing balance: ${error.message}`);

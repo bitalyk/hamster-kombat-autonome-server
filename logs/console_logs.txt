@@ -1,10 +1,11 @@
-[17:52:50, 30-08-2024] Server running on port 3000
-[17:52:50, 30-08-2024] Next task execution at: 8/30/2024, 6:52:50 PM
-[17:52:50, 30-08-2024] Next cipher execution at: 8/30/2024, 10:05:00 PM
-[17:52:50, 30-08-2024] Next minigame candles execution at: 8/30/2024, 11:05:00 PM
-[17:52:50, 30-08-2024] Next minigame tiles execution at: 8/31/2024, 2:05:00 PM
-[17:53:06, 30-08-2024] Purchase limit set to 8089.25
-[17:53:19, 30-08-2024] Shop service started.
-[17:53:19, 30-08-2024] Balance synced: 52009107 coins. Earn Passive Per Sec: 2060 coins
-[17:53:19, 30-08-2024] Selected upgrade: Hiring employees with wait time: 5775 seconds
-[17:53:19, 30-08-2024] Preparing to buy Hiring employees after waiting 5775 seconds
+[00:23:06, 21-09-2024] Server running on port 3000
+[00:23:06, 21-09-2024] Next task execution at: 9/21/2024, 1:23:06 AM
+[00:23:06, 21-09-2024] Next cipher execution at: 9/21/2024, 10:05:00 PM
+[00:23:06, 21-09-2024] Next minigame candles execution at: 9/21/2024, 11:05:00 PM
+[00:23:06, 21-09-2024] Next minigame tiles execution at: 9/21/2024, 2:05:00 PM
+[00:23:18, 21-09-2024] Shop service started.
+[00:23:18, 21-09-2024] Balance synced: 24 coins. Earn Passive Per Sec: 0 coins
+[00:23:18, 21-09-2024] Selected upgrade: Year strategy with wait time: 13087 seconds
+[00:23:18, 21-09-2024] Waiting for 900 seconds before re-evaluating upgrades...
+[00:24:23, 21-09-2024] Shop service stopped.
+[00:24:23, 21-09-2024] Shutting down gracefully...
