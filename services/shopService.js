@@ -182,9 +182,6 @@ async function startShopService() {
 
         while (selectedUpgrade && retryCount < maxRetries && isRunning) {
             const remainingWaitTime = nextWaitTime - totalWaitTime;
-            if (remainingWaitTime <= 0) {
-                break;
-            }
 
             const waitTime = Math.min(remainingWaitTime, CHECK_INTERVAL);
             logConsoleMessage(`Waiting for ${waitTime} seconds before re-evaluating upgrades...`);

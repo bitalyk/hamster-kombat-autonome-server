@@ -34,7 +34,7 @@ const checkTasks = () => {
         }
 
         // Filter tasks that are not completed
-        const incompleteTasks = data.tasks.filter(task => !task.isCompleted && task.id !== 'invite_friends');
+        const incompleteTasks = data.tasks.filter(task => !task.isCompleted && task.id !== 'invite_friends_25');
         const taskIds = incompleteTasks.map(task => task.id);
 
         if (taskIds.length === 0) {
